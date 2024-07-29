@@ -6,59 +6,59 @@ use Alipay\Exception\AlipayBase64Exception;
 use Alipay\Exception\AlipayInvalidSignException;
 use Alipay\Exception\AlipayOpenSslException;
 use Alipay\Key\AlipayKeyPair;
-use Alipay\Request\AlipayRequest;
+use Alipay\Request\AbstractAlipayRequest;
 use Alipay\Signer\AlipayRSA2Signer;
 use Alipay\Signer\AlipaySigner;
 
 class AopClient
 {
     /**
-     * SDK 版本.
+     * SDK 版本
      */
-    public const SDK_VERSION = 'alipay-sdk-PHP-4.11.14.ALL';
+    const SDK_VERSION = 'alipay-sdk-php-20180705';
 
     /**
-     * API 版本.
+     * API 版本
      */
-    public const API_VERSION = '1.0';
+    const API_VERSION = '1.0';
 
     /**
-     * 应用 ID.
+     * 应用 ID
      *
      * @var string
      */
     protected $appId;
 
     /**
-     * 签名器.
+     * 签名器
      *
      * @var AlipaySigner
      */
     protected $signer;
 
     /**
-     * 请求发送器.
+     * 请求发送器
      *
      * @var AlipayRequester
      */
     protected $requester;
 
     /**
-     * 响应解析器.
+     * 响应解析器
      *
      * @var AlipayResponseFactory
      */
     protected $parser;
 
     /**
-     * 密钥对.
+     * 密钥对
      *
      * @var AlipayKeyPair
      */
     protected $keyPair;
 
     /**
-     * 创建客户端.
+     * 创建客户端
      *
      * @param string                $appId     应用 ID，请在开放平台管理页面获取
      * @param AlipayKeyPair         $keyPair   密钥对，用于存储支付宝公钥和应用私钥
@@ -81,66 +81,13 @@ class AopClient
     }
 
     /**
-     * 解密被支付宝加密的敏感数据.
+     * 拼接请求参数并签名
      *
-     * @param string $encryptedData Base64 格式的已加密的数据，如手机号
-     * @param string $encodedKey    Base64 编码后的密钥
-     * @param string $cipher        解密算法，保持默认值即可
+     * @param AbstractAlipayRequest $request
      *
-     * @throws AlipayOpenSslException
-     *
-     * @return string
-     *
-     * @see https://docs.alipay.com/mini/introduce/aes
-     * @see https://docs.alipay.com/mini/introduce/getphonenumber
-     */
-    public static function decrypt($encryptedData, $encodedKey, $cipher = 'aes-128-cbc')
-    {
-        $key = base64_decode($encodedKey);
-        if ($key === false) {
-            throw new AlipayBase64Exception($encodedKey);
-        }
-
-        if (! in_array($cipher, openssl_get_cipher_methods(), true)) {
-            throw new AlipayOpenSslException("Cipher algorithm {$cipher} not available");
-        }
-
-        $result = openssl_decrypt($encryptedData, $cipher, $key);
-        if ($result === false) {
-            throw new AlipayOpenSslException();
-        }
-
-        return $result;
-    }
-
-    /**
-     * 一键执行请求.
-     *
-     * @param  AlipayRequest  $request
-     * @return AlipayResponse
-     * @throws AlipayBase64Exception
-     * @throws AlipayInvalidSignException
-     * @throws AlipayOpenSslException
-     * @throws Exception\AlipayInvalidResponseException
-     */
-    public function execute(AlipayRequest $request)
-    {
-        $params = $this->build($request);
-
-        $response = $this->request($params);
-
-        return $response;
-    }
-
-    /**
-     * 拼接请求参数并签名.
-     *
-     * @param  AlipayRequest  $request
      * @return array
-     * @throws AlipayBase64Exception
-     * @throws AlipayOpenSslException
      */
-    public function build(AlipayRequest $request)
+    public function build(AbstractAlipayRequest $request)
     {
         // 组装系统参数
         $sysParams = [];
@@ -157,42 +104,44 @@ class AopClient
         $sysParams['notify_url'] = $request->getNotifyUrl();
         $sysParams['return_url'] = $request->getReturnUrl();
 
-        $sysParams['terminal_type'] = $request->getTerminalType();
-        $sysParams['terminal_info'] = $request->getTerminalInfo();
-        $sysParams['prod_code'] = $request->getProdCode();
+        // $sysParams['terminal_type'] = $request->getTerminalType();
+        // $sysParams['terminal_info'] = $request->getTerminalInfo();
+        // $sysParams['prod_code'] = $request->getProdCode();
 
         $sysParams['auth_token'] = $request->getAuthToken();
         $sysParams['app_auth_token'] = $request->getAppAuthToken();
-        $sysParams['biz_content'] = $request->getBizContent();
-        $sysParams = array_merge($sysParams, get_object_vars($request));
+
+        // 获取业务参数
+        $apiParams = $request->getApiParams();
+
+        // 合并参数
+        $totalParams = array_merge($apiParams, $sysParams);
+
         // 转换可能是数组的参数
-        foreach ($sysParams as $key => &$param) {
-            if (is_array($param) || is_object($param)) {
-                $param = json_encode($param, JSON_UNESCAPED_UNICODE);
+        if ($request->arrayAsJson) {
+            foreach ($totalParams as &$param) {
+                if (is_array($param) || is_object($param)) {
+                    $param = json_encode($param, JSON_UNESCAPED_UNICODE);
+                }
             }
-            if (is_null($param)) {
-                unset($sysParams[$key]);
-            }
+            unset($param);
         }
 
         // 签名
-        $sysParams['sign'] = $this->signer->generateByParams(
-            $sysParams,
+        $totalParams['sign'] = $this->signer->generateByParams(
+            $totalParams,
             $this->keyPair->getPrivateKey()->asResource()
         );
 
-        return $sysParams;
+        return $totalParams;
     }
 
     /**
-     * 发起请求、解析响应、验证签名.
+     * 发起请求、解析响应、验证签名
      *
-     * @param $params
+     * @param array $params
+     *
      * @return AlipayResponse
-     * @throws AlipayBase64Exception
-     * @throws AlipayInvalidSignException
-     * @throws AlipayOpenSslException
-     * @throws Exception\AlipayInvalidResponseException
      */
     public function request($params)
     {
@@ -210,14 +159,32 @@ class AopClient
     }
 
     /**
-     * 仅拼接请求参数并签名，但不发起请求.
+     * 一键执行请求
      *
-     * @param  AlipayRequest  $request
-     * @return string
-     * @throws AlipayBase64Exception
-     * @throws AlipayOpenSslException
+     * @param AbstractAlipayRequest $request
+     *
+     * @return AlipayResponse
+     *
+     * @see self::build()
+     * @see self::request()
      */
-    public function sdkExecute(AlipayRequest $request)
+    public function execute(AbstractAlipayRequest $request)
+    {
+        $params = $this->build($request);
+
+        $response = $this->request($params);
+
+        return $response;
+    }
+
+    /**
+     * 仅拼接请求参数并签名，但不发起请求
+     *
+     * @param AbstractAlipayRequest $request
+     *
+     * @return string
+     */
+    public function sdkExecute(AbstractAlipayRequest $request)
     {
         $params = $this->build($request);
 
@@ -225,30 +192,28 @@ class AopClient
     }
 
     /**
-     * 仅拼接请求参数并签名，生成跳转 URL.
+     * 仅拼接请求参数并签名，生成跳转 URL
      *
-     * @param  AlipayRequest  $request
+     * @param AbstractAlipayRequest $request
+     *
      * @return string
-     * @throws AlipayBase64Exception
-     * @throws AlipayOpenSslException
      */
-    public function pageExecuteUrl(AlipayRequest $request)
+    public function pageExecuteUrl(AbstractAlipayRequest $request)
     {
         $queryParams = $this->build($request);
-        $url = $this->requester->getGateway().'?'.http_build_query($queryParams);
+        $url = $this->requester->getGateway() . '?' . http_build_query($queryParams);
 
         return $url;
     }
 
     /**
-     * 仅拼接请求参数并签名，生成表单 HTML.
+     * 仅拼接请求参数并签名，生成表单 HTML
      *
-     * @param  AlipayRequest  $request
+     * @param AbstractAlipayRequest $request
+     *
      * @return string
-     * @throws AlipayBase64Exception
-     * @throws AlipayOpenSslException
      */
-    public function pageExecuteForm(AlipayRequest $request)
+    public function pageExecuteForm(AbstractAlipayRequest $request)
     {
         $fields = $this->build($request);
 
@@ -267,12 +232,11 @@ class AopClient
     }
 
     /**
-     * 验证由支付宝服务器发来的回调通知请求，其签名数据是否未被篡改.
+     * 验证由支付宝服务器发来的回调通知请求，其签名数据是否未被篡改
      *
-     * @param  null  $params
+     * @param array|null $params 请求参数（默认使用 $_POST）
+     *
      * @return bool
-     * @throws AlipayBase64Exception
-     * @throws AlipayOpenSslException
      */
     public function verify($params = null)
     {
@@ -295,7 +259,40 @@ class AopClient
     }
 
     /**
-     * 获取应用 ID.
+     * 解密被支付宝加密的敏感数据
+     *
+     * @param string $encryptedData Base64 格式的已加密的数据，如手机号
+     * @param string $encodedKey    Base64 编码后的密钥
+     * @param string $cipher        解密算法，保持默认值即可
+     *
+     * @throws AlipayOpenSslException
+     *
+     * @return string
+     *
+     * @see https://docs.alipay.com/mini/introduce/aes
+     * @see https://docs.alipay.com/mini/introduce/getphonenumber
+     */
+    public static function decrypt($encryptedData, $encodedKey, $cipher = 'aes-128-cbc')
+    {
+        $key = base64_decode($encodedKey);
+        if ($key === false) {
+            throw new AlipayBase64Exception($encodedKey);
+        }
+
+        if (!in_array($cipher, openssl_get_cipher_methods(), true)) {
+            throw new AlipayOpenSslException("Cipher algorithm {$cipher} not available");
+        }
+
+        $result = openssl_decrypt($encryptedData, $cipher, $key);
+        if ($result === false) {
+            throw new AlipayOpenSslException();
+        }
+
+        return $result;
+    }
+
+    /**
+     * 获取应用 ID
      *
      * @return string
      */
@@ -305,7 +302,7 @@ class AopClient
     }
 
     /**
-     * 获取与本客户端关联的密钥对.
+     * 获取与本客户端关联的密钥对
      *
      * @return AlipayKeyPair
      */
@@ -315,7 +312,7 @@ class AopClient
     }
 
     /**
-     * 获取与本客户端关联的响应解析器.
+     * 获取与本客户端关联的响应解析器
      *
      * @return AlipayResponseFactory
      */
@@ -325,7 +322,7 @@ class AopClient
     }
 
     /**
-     * 获取与本客户端关联的请求发送器.
+     * 获取与本客户端关联的请求发送器
      *
      * @return AlipayRequester
      */
@@ -335,7 +332,7 @@ class AopClient
     }
 
     /**
-     * 获取与本客户端关联的签名器.
+     * 获取与本客户端关联的签名器
      *
      * @return AlipaySigner
      */

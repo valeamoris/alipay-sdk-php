@@ -13,8 +13,6 @@ class AlipayPublicKey extends AlipayKey
 
     public static function getKey($certificate)
     {
-        $certString = is_file($certificate) ? file_get_contents($certificate) : $certificate;
-
-        return openssl_pkey_get_public($certString) ?: parent::getKey($certificate);
+        return openssl_pkey_get_public($certificate) ?: parent::getKey($certificate);
     }
 }

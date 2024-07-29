@@ -8,24 +8,24 @@ use Alipay\Exception\AlipayInvalidResponseException;
 class AlipayResponse
 {
     /**
-     * 响应签名节点名.
+     * 响应签名节点名
      */
-    public const SIGN_NODE = 'sign';
+    const SIGN_NODE = 'sign';
 
     /**
-     * 响应错误节点名.
+     * 响应错误节点名
      */
-    public const ERROR_NODE = 'error_response';
+    const ERROR_NODE = 'error_response';
 
     /**
-     * 原始响应.
+     * 原始响应
      *
      * @var string
      */
     protected $raw;
 
     /**
-     * 已解析的响应.
+     * 已解析的响应
      *
      * @var mixed
      */
@@ -38,13 +38,11 @@ class AlipayResponse
     }
 
     /**
-     * 获取原始响应的被签名数据，用于验证签名.
+     * 获取原始响应的被签名数据，用于验证签名
      *
-     * @throws AlipayInvalidResponseException
+     * @return string
      *
-     * @return false|string
-     *
-     * @see AlipaySigner::verify()
+     * @see    AlipaySigner::verify()
      */
     public function stripData()
     {
@@ -52,7 +50,7 @@ class AlipayResponse
         $nodeIndex = strpos($this->raw, $nodeName);
 
         $signDataStartIndex = $nodeIndex + strlen($nodeName) + 2;
-        $signIndex = strrpos($this->raw, '"'.static::SIGN_NODE.'"');
+        $signIndex = strrpos($this->raw, '"' . static::SIGN_NODE . '"');
 
         $signDataEndIndex = $signIndex - 1;
         $indexLen = $signDataEndIndex - $signDataStartIndex;
@@ -64,11 +62,9 @@ class AlipayResponse
     }
 
     /**
-     * 获取响应内的签名.
+     * 获取响应内的签名
      *
-     * @throws AlipayInvalidResponseException
-     *
-     * @return mixed
+     * @return string
      */
     public function getSign()
     {
@@ -80,13 +76,11 @@ class AlipayResponse
     }
 
     /**
-     * 获取响应内的数据.
+     * 获取响应内的数据
      *
      * @param bool $assoc
      *
-     * @throws AlipayErrorResponseException
-     *
-     * @return mixed|object
+     * @return mixed
      */
     public function getData($assoc = true)
     {
@@ -102,22 +96,17 @@ class AlipayResponse
     }
 
     /**
-     * 判断响应是否成功.
+     * 获取原始响应
      *
-     * @return bool
+     * @return string
      */
-    public function isSuccess()
+    public function getRaw()
     {
-        if (isset($this->parsed[static::ERROR_NODE])) {
-            return false;
-        }
-        $data = $this->getFirstElement();
-
-        return ! isset($data['code']) || empty($data['code']) || $data['code'] == '10000';
+        return $this->raw;
     }
 
     /**
-     * 获取响应数据内的首元素.
+     * 获取响应数据内的首元素
      *
      * @return mixed
      */
@@ -129,7 +118,22 @@ class AlipayResponse
     }
 
     /**
-     * 获取响应内的错误.
+     * 判断响应是否成功
+     *
+     * @return bool
+     */
+    public function isSuccess()
+    {
+        if (isset($this->parsed[static::ERROR_NODE])) {
+            return false;
+        }
+        $data = $this->getFirstElement();
+
+        return !isset($data['code']) || empty($data['code']) || $data['code'] == '10000';
+    }
+
+    /**
+     * 获取响应内的错误
      *
      * @return mixed|null
      */
@@ -138,21 +142,15 @@ class AlipayResponse
         if ($this->isSuccess()) {
             return null;
         }
-        $result = $this->parsed[static::ERROR_NODE] ?? $this->getFirstElement();
+        if (isset($this->parsed[static::ERROR_NODE])) {
+            $result = $this->parsed[static::ERROR_NODE];
+        } else {
+            $result = $this->getFirstElement();
+        }
         if ($assoc == false) {
             $result = (object) ($result);
         }
 
         return $result;
-    }
-
-    /**
-     * 获取原始响应.
-     *
-     * @return string
-     */
-    public function getRaw()
-    {
-        return $this->raw;
     }
 }

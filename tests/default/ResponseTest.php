@@ -6,13 +6,12 @@ use PHPUnit\Framework\TestCase;
 
 class ResponseTest extends TestCase
 {
-    public const SIGN = 'AN_EXAMPLE_SIGN';
+    const SIGN = 'AN_EXAMPLE_SIGN';
 
     public function testFactory()
     {
         $parser = new AlipayResponseFactory();
         $this->assertEquals('JSON', $parser->getFormat());
-
         return $parser;
     }
 
@@ -32,7 +31,6 @@ class ResponseTest extends TestCase
         $ins = $parser->parse($response);
         $this->assertInstanceOf('Alipay\AlipayResponse', $ins);
         $this->assertFalse($ins->isSuccess());
-
         return $ins;
     }
 
@@ -45,7 +43,6 @@ class ResponseTest extends TestCase
         $ins = $parser->parse($response);
         $this->assertInstanceOf('Alipay\AlipayResponse', $ins);
         $this->assertFalse($ins->isSuccess());
-
         return $ins;
     }
 
@@ -62,13 +59,12 @@ class ResponseTest extends TestCase
                 "refresh_token": "20120823ac6ffdsdf2d84e7384bf983531473993",
                 "re_expires_in": "3600"
             },
-            "sign": "'.self::SIGN.'"
+            "sign": "' . self::SIGN . '"
         }';
         $ins = $parser->parse($response);
         $this->assertInstanceOf('Alipay\AlipayResponse', $ins);
         $this->assertEquals($response, $ins->getRaw());
         $this->assertTrue($ins->isSuccess());
-
         return $ins;
     }
 
@@ -77,11 +73,13 @@ class ResponseTest extends TestCase
      */
     public function testParseInvalidResponse(AlipayResponseFactory $parser)
     {
-        $this->setExpectedException('Alipay\Exception\AlipayInvalidResponseException');
+        $this->expectException('Alipay\Exception\AlipayInvalidResponseException');
 
         $response = 'this is an invalid response';
         $parser->parse($response);
     }
+
+    // =========================================================
 
     /**
      * @depends testParseSuccess
@@ -106,13 +104,13 @@ class ResponseTest extends TestCase
      */
     public function testSignNotFound(AlipayResponse $ins)
     {
-        $this->setExpectedException('Alipay\Exception\AlipayInvalidResponseException', 'sign');
+        $this->expectException('Alipay\Exception\AlipayInvalidResponseException');
+        $this->expectExceptionMessage('sign');
 
         try {
             $ins->getSign();
         } catch (Alipay\Exception\AlipayInvalidResponseException $ex) {
             $this->assertNotEmpty($ex->getResponse());
-
             throw $ex;
         }
     }
@@ -154,7 +152,7 @@ class ResponseTest extends TestCase
      */
     public function testGetDataFromError(AlipayResponse $ins)
     {
-        $this->setExpectedException('Alipay\Exception\AlipayErrorResponseException');
+        $this->expectException('Alipay\Exception\AlipayErrorResponseException');
 
         $ins->getData();
     }

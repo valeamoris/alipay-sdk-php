@@ -2,13 +2,13 @@
 
 use Alipay\AopClient;
 use Alipay\Key\AlipayKeyPair;
-use Alipay\Request\AlipayRequest;
+use Alipay\Request\AbstractAlipayRequest;
 use Alipay\Signer\AlipayRSA2Signer;
 use PHPUnit\Framework\TestCase;
 
 class ClientTest extends TestCase
 {
-    public const APPID = '123456';
+    const APPID = '123456';
 
     /**
      * @depends SignTest::testKeyPair
@@ -17,7 +17,6 @@ class ClientTest extends TestCase
     {
         $aop = new AopClient(static::APPID, $keyPair);
         $this->assertTrue(true);
-
         return $aop;
     }
 
@@ -25,7 +24,7 @@ class ClientTest extends TestCase
      * @depends testCreate
      * @depends RequestFactoryTest::testCreate
      */
-    public function testBuild(AopClient $client, AlipayRequest $request)
+    public function testBuild(AopClient $client, AbstractAlipayRequest $request)
     {
         $params = $client->build($request);
         $this->assertEquals('foo', $params['code']);
@@ -36,7 +35,7 @@ class ClientTest extends TestCase
      * @depends testCreate
      * @depends RequestFactoryTest::testCreate
      */
-    public function testSdkExecute(AopClient $client, AlipayRequest $request)
+    public function testSdkExecute(AopClient $client, AbstractAlipayRequest $request)
     {
         $res = $client->sdkExecute($request);
         $this->assertNotEmpty($res);
@@ -56,7 +55,7 @@ class ClientTest extends TestCase
     {
         parse_str(SignTest::TEST_DATA, $params);
         $params['sign'] = $sign;
-        $params['sign_type'] = (new AlipayRSA2Signer())->getSignType();
+        $params['sign_type'] = (new AlipayRSA2Signer)->getSignType();
         $result = $client->verify($params);
         $this->assertTrue($result);
 
@@ -67,7 +66,6 @@ class ClientTest extends TestCase
 
     /**
      * @depends testCreate
-     * @depends RequestFactoryTest::testCreate
      */
     public function testDecrypt(AopClient $client)
     {
@@ -81,12 +79,11 @@ class ClientTest extends TestCase
 
     /**
      * @depends testCreate
-     * @depends RequestFactoryTest::testCreate
      */
     public function testDecryptException(AopClient $client)
     {
         $this->expectException('Alipay\Exception\AlipayOpenSslException');
-
+        
         $client->decrypt(
             'h6qnRCccN8vR/IPtKYuTMIZUoDE9ZKp6pB2rrh4BMu8C7rS51ZZFn3aTlPl4i/RxvdS7SkJ+i49uDYfV+u5CKA==',
             'ZXdCNW9ta1FsRGlVbzQ0TVdXbzJKN001dA==',
@@ -96,7 +93,6 @@ class ClientTest extends TestCase
 
     /**
      * @depends testCreate
-     * @depends RequestFactoryTest::testCreate
      */
     public function testGetters(AopClient $client)
     {

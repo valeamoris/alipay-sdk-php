@@ -2,14 +2,13 @@
 
 namespace Alipay\Key;
 
-use Alipay\Exception\AlipayInvalidKeyException;
 use Alipay\Exception\AlipayOpenSslException;
 
 class AlipayKeyPair
 {
     /**
      * 支付宝公钥
-     * 支持文件路径或公钥字符串，用于验证签名.
+     * 支持文件路径或公钥字符串，用于验证签名
      *
      * @var AlipayPublicKey
      */
@@ -17,19 +16,17 @@ class AlipayKeyPair
 
     /**
      * 商户私钥（又称：小程序私钥，App私钥等）
-     * 支持文件路径或私钥字符串，用于生成签名.
+     * 支持文件路径或私钥字符串，用于生成签名
      *
      * @var AlipayPrivateKey
      */
     protected $privateKey;
 
     /**
-     * 创建密钥对.
+     * 创建密钥对
      *
-     * @param $privateKey
-     * @param $publicKey
-     *
-     * @throws AlipayInvalidKeyException
+     * @param string $privateKey
+     * @param string $publicKey
      *
      * @return static
      */
@@ -43,12 +40,9 @@ class AlipayKeyPair
     }
 
     /**
-     * 生成密钥对.
+     * 生成密钥对
      *
      * @param array $configargs
-     *
-     * @throws AlipayOpenSslException
-     * @throws AlipayInvalidKeyException
      *
      * @return static
      */
@@ -75,7 +69,7 @@ class AlipayKeyPair
     }
 
     /**
-     * 获取私钥对象.
+     * 获取私钥对象
      *
      * @return AlipayPrivateKey
      */
@@ -85,23 +79,7 @@ class AlipayKeyPair
     }
 
     /**
-     * 设置应用私钥.
-     *
-     * @param $key
-     *
-     * @throws AlipayInvalidKeyException
-     *
-     * @return $this
-     */
-    public function setPrivateKey($key)
-    {
-        $this->privateKey = AlipayPrivateKey::create($key);
-
-        return $this;
-    }
-
-    /**
-     * 获取公钥对象.
+     * 获取公钥对象
      *
      * @return AlipayPublicKey
      */
@@ -111,13 +89,25 @@ class AlipayKeyPair
     }
 
     /**
-     * 设置支付宝公钥.
+     * 设置应用私钥
      *
-     * @param $key
+     * @param string $key
      *
-     * @throws AlipayInvalidKeyException
+     * @return static
+     */
+    public function setPrivateKey($key)
+    {
+        $this->privateKey = AlipayPrivateKey::create($key);
+
+        return $this;
+    }
+
+    /**
+     * 设置支付宝公钥
      *
-     * @return $this
+     * @param string $key
+     *
+     * @return static
      */
     public function setPublicKey($key)
     {

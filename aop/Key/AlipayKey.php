@@ -4,24 +4,17 @@ namespace Alipay\Key;
 
 use Alipay\Exception\AlipayInvalidKeyException;
 use Alipay\Exception\AlipayOpenSslException;
-use Serializable;
 
-abstract class AlipayKey implements Serializable
+abstract class AlipayKey implements \Serializable
 {
     protected $resource;
 
-    protected function __construct()
-    {
-    }
-
     /**
-     * 创建密钥.
+     * 创建密钥
      *
-     * @param $key
+     * @param string $key
      *
      * @return static
-     * @throws AlipayInvalidKeyException
-     *
      */
     public static function create($key)
     {
@@ -31,14 +24,35 @@ abstract class AlipayKey implements Serializable
         return $instance;
     }
 
+    protected function __construct()
+    {
+    }
+
+    public function __destruct()
+    {
+        $this->release();
+    }
+
     /**
-     * 加载密钥.
+     * 深拷贝需要重新加载密钥
+     *
+     * @return void
+     */
+    public function __clone()
+    {
+        $key = $this->asString();
+        $this->resource = null;
+        $this->load($key);
+    }
+
+    /**
+     * 加载密钥
      *
      * @param string $certificate 密钥字符串或密钥路径
      *
-     * @return void
      * @throws AlipayInvalidKeyException
      *
+     * @return void
      */
     protected function load($certificate)
     {
@@ -46,11 +60,15 @@ abstract class AlipayKey implements Serializable
             throw new AlipayInvalidKeyException('Resource of key has already been initialized');
         }
 
+        if (is_file($certificate)) {
+            $certificate = 'file://' . $certificate;
+        }
+
         $this->resource = static::getKey($certificate);
     }
 
     /**
-     * 检查此密钥是否可用.
+     * 检查此密钥是否可用
      *
      * @return bool
      */
@@ -60,19 +78,40 @@ abstract class AlipayKey implements Serializable
     }
 
     /**
-     * 加载密钥资源.
+     * 释放密钥资源
      *
-     * @param $certificate
-     *
-     * @throws AlipayInvalidKeyException
+     * @return void
      */
-    public static function getKey($certificate)
+    protected function release()
     {
-        throw new AlipayInvalidKeyException(openssl_error_string() . " ($certificate)");
+        if ($this->isLoaded()) {
+            @openssl_free_key($this->resource);
+        }
+        $this->resource = null;
     }
 
     /**
-     * 使用密钥资源直接初始化本对象.
+     * 获取真实的密钥资源
+     *
+     * @return resource
+     */
+    public function asResource()
+    {
+        return $this->resource;
+    }
+
+    /**
+     * 获取密钥字符串
+     *
+     * @return string
+     */
+    public function asString()
+    {
+        return static::toString($this->resource);
+    }
+
+    /**
+     * 使用密钥资源直接初始化本对象
      *
      * @param resource $resource
      *
@@ -86,52 +125,12 @@ abstract class AlipayKey implements Serializable
         return $instance;
     }
 
-    public function __destruct()
-    {
-        $this->release();
-    }
-
     /**
-     * 释放密钥资源.
+     * 将密钥资源转为字符串
      *
-     * @return void
-     */
-    protected function release()
-    {
-        if ($this->isLoaded()) {
-            @openssl_free_key($this->resource);
-        }
-        $this->resource = null;
-    }
-
-    /**
-     * 深拷贝需要重新加载密钥.
+     * @param resource $resource
      *
-     * @throws AlipayInvalidKeyException
-     */
-    public function __clone()
-    {
-        $key = $this->asString();
-        $this->resource = null;
-        $this->load($key);
-    }
-
-    /**
-     * 获取密钥字符串.
-     *
-     * @throws AlipayOpenSslException
-     */
-    public function asString()
-    {
-        return static::toString($this->resource);
-    }
-
-    /**
-     * 将密钥资源转为字符串.
-     *
-     * @param $resource
-     *
-     * @throws AlipayOpenSslException
+     * @return string
      */
     public static function toString($resource)
     {
@@ -139,13 +138,15 @@ abstract class AlipayKey implements Serializable
     }
 
     /**
-     * 获取真实的密钥资源.
+     * 加载密钥资源
+     *
+     * @param string $certificate
      *
      * @return resource
      */
-    public function asResource()
+    public static function getKey($certificate)
     {
-        return $this->resource;
+        throw new AlipayInvalidKeyException(openssl_error_string() . " ($certificate)");
     }
 
     public function serialize()
@@ -159,14 +160,14 @@ abstract class AlipayKey implements Serializable
     }
 
 
-    public function __serialize(): array
+    public function __serialize()
     {
         return array(
-            'resource' => $this->asString(),
+            'resource'=>$this->asString(),
         );
     }
 
-    public function __unserialize(array $data): void
+    public function __unserialize($data)
     {
         $resource = $data['resource'];
         $this->load($resource);
