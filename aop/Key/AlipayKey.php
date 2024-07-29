@@ -19,9 +19,9 @@ abstract class AlipayKey implements Serializable
      *
      * @param $key
      *
+     * @return static
      * @throws AlipayInvalidKeyException
      *
-     * @return static
      */
     public static function create($key)
     {
@@ -36,9 +36,9 @@ abstract class AlipayKey implements Serializable
      *
      * @param string $certificate 密钥字符串或密钥路径
      *
+     * @return void
      * @throws AlipayInvalidKeyException
      *
-     * @return void
      */
     protected function load($certificate)
     {
@@ -68,7 +68,7 @@ abstract class AlipayKey implements Serializable
      */
     public static function getKey($certificate)
     {
-        throw new AlipayInvalidKeyException(openssl_error_string()." ($certificate)");
+        throw new AlipayInvalidKeyException(openssl_error_string() . " ($certificate)");
     }
 
     /**
@@ -156,5 +156,19 @@ abstract class AlipayKey implements Serializable
     public function unserialize($data)
     {
         $this->load($data);
+    }
+
+
+    public function __serialize(): array
+    {
+        return array(
+            'resource' => $this->asString(),
+        );
+    }
+
+    public function __unserialize(array $data): void
+    {
+        $resource = $data['resource'];
+        $this->load($resource);
     }
 }
